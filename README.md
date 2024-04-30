@@ -7,4 +7,4 @@ You can use following format input to use the script
 
 For example:
 
-python waf_crossregion_copy.py waf-test CLOUDFRONT us-east-1 REGIONAL us-west-1# waf_crossregion_copy
+> python waf_crossregion_copy.py waf-test CLOUDFRONT us-east-1 REGIONAL us-west-1# waf_crossregion_copy
