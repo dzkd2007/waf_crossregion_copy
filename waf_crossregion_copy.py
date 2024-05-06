@@ -1,6 +1,5 @@
 import os
 import json
-import pprint
 import boto3
 import time
 import uuid
@@ -9,7 +8,7 @@ import sys
 
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
-    width = 50  # 设置总宽度为 30 个字符
+    width = 52  # 设置总宽度为 30 个字符
 
     banner = f""" 
     {'*' * width}
@@ -66,7 +65,7 @@ def update_ARN(Rules):
         Rules = json.loads(json.dumps(Rules).replace(key, RULEGROUPARN[key]))
     for key in IPSETARN:
         Rules = json.loads(json.dumps(Rules).replace(key, IPSETARN[key]))
-    # print(Rules)
+
     return Rules
 
 
@@ -124,6 +123,8 @@ def modify_rules(src_scope, dst_scope, rules):
 
 def save_config_to_local(name,unique_id,wafconfig):
     """
+    将获取的配置保存在本地一份，用于备份和比对，或者回退
+    这里的unique——id，在每次执行脚本时生成，用于区别每次运行并区分每次获取的配置
 
     :param name: str
     :param unique_id: str
@@ -144,9 +145,6 @@ def get_src_webacl_info(scope, webaclname):
     ipset = {}
     regset = {}
     rulegroup = {}
-    chalconfig = {}
-    captchaconfig = {}
-    customresponsebody = {}
     webacl_info = {}
     aclid = ''
     response = src_waf_client.list_web_acls(
@@ -170,21 +168,10 @@ def get_src_webacl_info(scope, webaclname):
     rules = web_acl_details['Rules']
     rules = preprocess_dict(rules)
     web_acl_details['Rules'] = rules
-    save_config_to_local(webaclname,unique_id,web_acl_details)
+    formated_waf_acl=preprocess_dict(web_acl_details)
+    #save config to local for backup and compare
+    save_config_to_local(webaclname,unique_id,formated_waf_acl)
 
-    # print('-----------Finding custom config that used in Web ACL------------')
-    # if 'CaptchaConfig' in web_acl_details:
-    #     print('CaptchaConfig exist-----------------')
-    #     captchaconfig["CaptchaConfig"] = web_acl_details['CaptchaConfig']
-    #     webacl_info['captcha_config'] = captchaconfig
-    # if "ChallengeConfig" in web_acl_details:
-    #     print('ChallengeConfig exist-----------------')
-    #     chalconfig["ChallengeConfig"] = web_acl_details['ChallengeConfig']
-    #     webacl_info['Challenge_Config'] = chalconfig
-    # if "CustomResponseBodies" in web_acl_details:
-    #     print('CustomResponseBodies exist-----------------')
-    #     customresponsebody['CustomResponseBodies'] = web_acl_details['CustomResponseBodies']
-    #     webacl_info['custom_response_body'] = customresponsebody
 
     print('-----------Finding custom resources that used in Web ACL------------')
     for item in rules:
@@ -215,11 +202,14 @@ def get_src_webacl_info(scope, webaclname):
     webacl_info['rule_group'] = rulegroup
     webacl_info['regex_set'] = regset
     print('-----------get following info about the given web acl-----------')
-    # pprint.pprint(webacl_info)
     return webacl_info
 
 
-def create_ipset_func(ip_set_info, src_scope, src_region, dst_scope, dst_region):
+def create_ipset_func(ip_set_info, src_scope, dst_scope):
+
+    global src_waf_client
+    global dst_waf_client
+
     ip_set_arn_output = {}
 
     print('-------------creating ipsets into target region : (%s) ----------------' % (dst_region))
@@ -230,40 +220,45 @@ def create_ipset_func(ip_set_info, src_scope, src_region, dst_scope, dst_region)
         ip_set_id = ip_set_info[ip_set_name]
 
         # 通过名字get配置
-        command_get_ipset = "aws wafv2 get-ip-set --scope %s --region %s --output json --name %s --id %s" % (
-            src_scope, src_region, ip_set_name, ip_set_id)
-        d_ipset = os.popen(command_get_ipset)
-        des_ipset = json.loads(d_ipset.read())
-        Description = des_ipset["IPSet"]["Description"]
-        # 如果有重名会报错，这里后面加了toolcreated作为标识，防止重名。但是ipset名字最大128字符，超过也会报错，需要注意和后续优化
-        Name = des_ipset["IPSet"]["Name"] + '-toolcreated'
-        ARN = des_ipset["IPSet"]["ARN"]
-        IPVestion = des_ipset["IPSet"]["IPAddressVersion"]
-        IPs = ""
-        # 创建一个基于现在时间的时间戳，创建ipset时附加到description上，便于区分创建时间。
-        timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
-        for ip in des_ipset["IPSet"]["Addresses"]:
-            IPs = IPs + "\"" + ip + "\"" + " "
+        src_ipset=src_waf_client.get_ip_set(
+            Name=ip_set_name,
+            Scope=src_scope,
+            Id=ip_set_id
 
-        if not Description:
-            create_ipset = """aws wafv2 create-ip-set --region %s --output json --scope %s --description %s --name %s --ip-address-version %s --addresses %s """ % (
-                dst_region, 'create-by-pyscript' + timeid, Name, IPVestion, IPs)
-        else:
-            create_ipset = """aws wafv2 create-ip-set --region %s --output json --scope %s --description %s --name %s --ip-address-version %s --addresses %s """ % (
-                dst_region, dst_scope, Description + '-create-by-pyscript@' + timeid, Name, IPVestion, IPs)
-        # print(create_ipset)
+        )
+        ipset=src_ipset["IPSet"]
+
+        # 如果有重名会报错，这里后面加了toolcreated作为标识，防止重名。但是ipset名字最大128字符，超过也会报错，需要注意和后续优化
+        Name = ipset["Name"] + '-toolcreated'
+        ARN = ipset["ARN"]
+        IPVestion = ipset["IPAddressVersion"]
+        addresses = ipset['Addresses']
+        option_params = {}
+        if 'Description' in ipset:
+            option_params['Description'] = ipset['Description']
+
         print('creating ipset '+Name)
-        res = os.popen(create_ipset)
-        res_list = json.loads(res.read())
-        print('success create ipset '+res_list['Summary']['Name'])
+        dst_ipset = dst_waf_client.create_ip_set(
+            Name=Name,
+            Scope=dst_scope,
+            IPAddressVersion=IPVestion,
+            **option_params,
+            Addresses=addresses
+
+        )
+        print('success create ipset '+dst_ipset['Summary']['Name'])
         # Add into dict
         # 将创建好的资源的ARN和原先资源的ARN记录下来，用于在创建web acl时，替换源web acl的json配置中的arn部分。
-        ip_set_arn_output[ARN] = res_list["Summary"]["ARN"]
+        ip_set_arn_output[ARN] = dst_ipset["Summary"]["ARN"]
 
     return ip_set_arn_output
 
 
-def create_regex_func(regex_set_info, src_scope, src_region, dst_scope, dst_region):
+def create_regex_func(regex_set_info, src_scope, dst_scope):
+
+    global src_waf_client
+    global dst_waf_client
+
     regex_arn_output = {}
 
     print('-------------creating regex set into target regions : (%s) ----------------' % (dst_region))
@@ -271,31 +266,30 @@ def create_regex_func(regex_set_info, src_scope, src_region, dst_scope, dst_regi
         regex_set_name = regex_set
         regex_set_id = regex_set_info[regex_set_name]
 
-        command_get_regex = "aws wafv2 get-regex-pattern-set --scope %s --region %s --output json --name %s --id %s" % (
-            src_scope, src_region, regex_set_name, regex_set_id)
+        src_regex = src_waf_client.get_regex_pattern_set(
+            Name=regex_set_name,
+            Scope=src_scope,
+            Id=regex_set_id
+        )
+        regexpatternset=src_regex['RegexPatternSet']
 
-        d_regex = os.popen(command_get_regex)
-        des_regex = json.loads(d_regex.read())
-        Description = des_regex["RegexPatternSet"]["Description"]
-        Name = des_regex["RegexPatternSet"]["Name"] + '-toolcreated'
-        ARN = des_regex["RegexPatternSet"]["ARN"]
-        RegexString = des_regex["RegexPatternSet"]["RegularExpressionList"]
-        timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
-        if not Description:
-            create_regex = """aws wafv2 create-regex-pattern-set --region %s --output json --scope %s --description %s --name %s 
-    			--regular-expression-list '%s'""" % (
-                dst_region, dst_scope, 'create-by-pyscript' + timeid, Name, json.dumps(RegexString))
-        else:
-            create_regex = """aws wafv2 create-regex-pattern-set --region %s --output json --scope %s --description %s --name %s --regular-expression-list '%s'""" % (
-                dst_region, dst_scope, Description + timeid, Name, json.dumps(RegexString))
-        # create_regex = """aws wafv2 create-regex-pattern-set --region %s --output json --scope REGIONAL --description %s --name %s --regular-expression-list '[{"RegexString": %s}]'"""%(_DST_REGION,Description,Name,json.dumps(RegexString))
-        # print(create_regex)
-        res = os.popen(create_regex)
+        option_params = {}
+        if 'Description' in regexpatternset:
+            option_params['Description'] = regexpatternset['Description']
+
+        Name = regexpatternset["Name"] + '-toolcreated'
+        ARN = regexpatternset["ARN"]
+        RegexString = regexpatternset["RegularExpressionList"]
+        # timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
+
+        dst_regex = dst_waf_client.create_regex_pattern_set(
+            Name=Name,
+            Scope=dst_scope,
+            **option_params,
+            RegularExpressionList=RegexString
+        )
         print('Regex set: '+Name+' created')
-        res_list = json.loads(res.read())
-        # print(res_list)
-        # Add into dict
-        regex_arn_output[ARN] = res_list["Summary"]["ARN"]
+        regex_arn_output[ARN] = dst_regex["Summary"]["ARN"]
 
     return regex_arn_output
 
@@ -313,7 +307,8 @@ def create_rule_group(rule_group_info, src_scope, src_region, dst_scope, dst_reg
         MetricName
         默认为rule-group的名字
     """
-
+    global src_waf_client
+    global dst_waf_client
     rule_group_arn_output = {}
 
     print('-------------creating rule group into target regions : (%s) ----------------' % (dst_region))
@@ -323,6 +318,11 @@ def create_rule_group(rule_group_info, src_scope, src_region, dst_scope, dst_reg
         rule_group_id = rule_group_info[rule_group_name]
 
         # 获取rule-group的json配置
+        # src_waf_client.get_rule_group(
+        #     Name=rule_group_name,
+        #     Scope=src_scope,
+        #     Id
+        # )
         command_get_rule = "aws wafv2 get-rule-group --scope %s --region %s --output json --name %s --id %s" % (
             src_scope, src_region, rule_group_name, rule_group_id)
         # print(command_get_rule)
@@ -511,6 +511,7 @@ if __name__ == '__main__':
     if not os.path.exists("./json_file"):
         os.makedirs("./json_file")
     unique_id = str(uuid.uuid4())
+    print('-------------script execution id is %s------------------'%(unique_id))
     # src_scope = "CLOUDFRONT"
     # src_region = "us-east-1"
     # dst_scope = "REGIONAL"
@@ -526,7 +527,7 @@ if __name__ == '__main__':
     waf_info=get_src_webacl_info(src_scope, web_acl_name)
 
     if waf_info['ip_set'] != {}:
-        IPSETARN = create_ipset_func(waf_info['ip_set'], src_scope, src_region, dst_scope, dst_region)
+        IPSETARN = create_ipset_func(waf_info['ip_set'], src_scope, dst_scope)
 
     if waf_info['regex_set'] != {}:
         REGEXSETARN = create_regex_func(waf_info['regex_set'], src_scope, src_region, dst_scope, dst_region)
