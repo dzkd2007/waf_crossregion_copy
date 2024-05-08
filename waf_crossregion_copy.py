@@ -465,9 +465,15 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
 
         # 新创建的rule-group后面添加'-toolcreated'做区分
         option_params = {}
+        timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
         Name = rule_group["Name"] + '-toolcreated'
         if 'Description' in rule_group:
-            option_params['Description'] = rule_group['Description']
+            if rule_group['Description'] == "":
+                option_params['Description'] = 'script_created_at' + timeid
+            option_params['Description'] = rule_group['Description'] + '_script_created_at_' + timeid
+
+        # if 'Description' in rule_group:
+        #     option_params['Description'] = rule_group['Description']
 
         ARN = rule_group["ARN"]
         # capacity的意义是？这个要确认一下。
@@ -476,7 +482,6 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
         rules_arn_updated = update_ARN(rules)
 
         # 添加timeid变量，用于给rule添加个一个带时间戳的description
-        # timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
 
         # 判断是否有 custom response bodies
         if 'CustomResponseBodies' in rule_group:
