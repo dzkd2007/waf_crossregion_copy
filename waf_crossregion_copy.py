@@ -10,7 +10,7 @@ import pprint
 
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
-    width = 52  # 设置总宽度为 30 个字符
+    width = 56  # 设置总宽度为 30 个字符
 
     banner = f""" 
     {'*' * width}
@@ -30,21 +30,49 @@ def validate_scope_region(pairs):
     return
 
 
-def preprocess_dict(d):
-    """
-    :param d:字典对象
-    :return:将其中的bytes类数据转换成string
-    原因是，从boto3 wafv2 api导出的waf 配置，如果有匹配字符的条目，会使用bytes类数据体现，
-    使用json.dump转化时会报错。因此使用函数对其中的bytes对象转化成str
+def get_reference_resource_info(rules, ipset, regset, rulegroup, process_rulegroup=True):
+    for item in rules:
+        statement = item['Statement']
+        if 'IPSetReferenceStatement' in statement:
+            ip_set_name, ip_set_id = statement['IPSetReferenceStatement']['ARN'].split('/')[-2:]
+            if ip_set_name in ipset:
+                continue
+            else:
+                print('IPSET:Name: %s, ID: %s ' % (ip_set_name, ip_set_id))
+                ipset[ip_set_name] = ip_set_id
+        if 'RegexPatternSetReferenceStatement' in statement:
+            regex_set_name, regex_set_id = statement['RegexPatternSetReferenceStatement']['ARN'].split('/')[-2:]
+            if regex_set_name in regset:
+                continue
+            else:
+                print('REGSET:Name: %s, ID: %s ' % (regex_set_name, regex_set_id))
+                regset[regex_set_name] = regex_set_id
+        if process_rulegroup and 'RuleGroupReferenceStatement' in statement:
+            rule_group_name, rule_group_id = statement['RuleGroupReferenceStatement']['ARN'].split('/')[-2:]
+            if rule_group_name in rulegroup:
+                continue
+            else:
+                print('RULEGROUP:Name: %s, ID: %s ' % (rule_group_name, rule_group_id))
+                rulegroup[rule_group_name] = [statement['RuleGroupReferenceStatement']['ARN'], rule_group_id]
 
-    """
-    if isinstance(d, dict):
-        return {k: preprocess_dict(v) if isinstance(v, dict) else v.decode('utf-8') if isinstance(v, bytes) else v
-                for k, v in d.items()}
-    elif isinstance(d, list):
-        return [preprocess_dict(v) for v in d]
-    else:
-        return d
+    return ipset, regset, rulegroup
+
+
+# def preprocess_dict(d):
+#     """
+#     :param d:字典对象
+#     :return:将其中的bytes类数据转换成string
+#     原因是，从boto3 wafv2 api导出的waf 配置，如果有匹配字符的条目，会使用bytes类数据体现，
+#     使用json.dump转化时会报错。因此使用函数对其中的bytes对象转化成str
+#
+#     """
+#     if isinstance(d, dict):
+#         return {k: preprocess_dict(v) if isinstance(v, dict) else v.decode('utf-8') if isinstance(v, bytes) else v
+#                 for k, v in d.items()}
+#     elif isinstance(d, list):
+#         return [preprocess_dict(v) for v in d]
+#     else:
+#         return d
 
 def update_ARN(Rules):
     """
@@ -186,36 +214,24 @@ def get_src_webacl_info(scope, webaclname):
     )
     web_acl_details = web_acl_res['WebACL']
     rules = web_acl_details['Rules']
-    rules = preprocess_dict(rules)
-    web_acl_details['Rules'] = rules
-    # formated_waf_acl=preprocess_dict(web_acl_details)
-    # save config to local for backup and compare
-    # save_config_to_local(webaclname,unique_id,formated_waf_acl)
 
     print('-----------Finding custom resources that used in Web ACL------------')
-    for item in rules:
-        statement = item['Statement']
-        if 'IPSetReferenceStatement' in statement:
-            ip_set_name, ip_set_id = statement['IPSetReferenceStatement']['ARN'].split('/')[-2:]
-            if ip_set_name in ipset:
-                continue
-            else:
-                print('IPSET:Name: %s, ID: %s ' % (ip_set_name, ip_set_id))
-                ipset[ip_set_name] = ip_set_id
-        if 'RuleGroupReferenceStatement' in statement:
-            rule_group_name, rule_group_id = statement['RuleGroupReferenceStatement']['ARN'].split('/')[-2:]
-            if rule_group_name in rulegroup:
-                continue
-            else:
-                print('RULEGROUP:Name: %s, ID: %s ' % (rule_group_name, rule_group_id))
-                rulegroup[rule_group_name] = [statement['RuleGroupReferenceStatement']['ARN'], rule_group_id]
-        if 'RegexPatternSetReferenceStatement' in statement:
-            regex_set_name, regex_set_id = statement['RegexPatternSetReferenceStatement']['ARN'].split('/')[-2:]
-            if regex_set_name in regset:
-                continue
-            else:
-                print('REGSET:Name: %s, ID: %s ' % (regex_set_name, regex_set_id))
-                regset[regex_set_name] = regex_set_id
+    ipset, regset, rulegroup = get_reference_resource_info(rules, ipset, regset, rulegroup)
+    # 如果存在rule group，查看rule group是否引用了ipset 或者regex set，如果有，加入到ipset和regex的集合里
+    if rulegroup:
+        for item in rulegroup:
+            rule_group_name = item
+            rule_group_id = rulegroup[rule_group_name][1]
+            rule_group_arn = rulegroup[rule_group_name][0]
+            rule_group_response = src_waf_client.get_rule_group(
+                Name=rule_group_name,
+                Scope=src_scope,
+                Id=rule_group_id,
+                ARN=rule_group_arn
+            )
+            rule_group_rules = rule_group_response["RuleGroup"]['Rules']
+            ipset, regset, rulegroup = get_reference_resource_info(rule_group_rules, ipset, regset, rulegroup,process_rulegroup=False)
+
 
     webacl_info['ip_set'] = ipset
     webacl_info['rule_group'] = rulegroup
@@ -302,6 +318,7 @@ def create_regex_func(regex_set_info, src_scope, dst_scope):
         RegexString = regexpatternset["RegularExpressionList"]
         # timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
         try:
+            print('creating regex set  ' + Name)
             dst_regex = dst_waf_client.create_regex_pattern_set(
                 Name=Name,
                 Scope=dst_scope,
@@ -379,6 +396,7 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
             option_params['VisibilityConfig']['MetricName'] = Name
 
         try:
+            print('creating rule group  ' + Name)
             result = dst_waf_client.create_rule_group(
                 Name=Name,
                 Scope=dst_scope,
@@ -434,23 +452,20 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     default_action = src_web_acl['DefaultAction']
     timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
 
-
-
     # create_web_acl_cli = create_web_acl_cli + ' --default-action ' + default_action
 
     visibility_config = src_web_acl['VisibilityConfig']
     visibility_config['MetricName'] = dst_web_acl_name
 
-
     option_params = {}
     if 'Description' in src_web_acl:
         if src_web_acl['Description'] == "":
-            option_params['Description'] = 'script_created_at'+timeid
-        option_params['Description'] = src_web_acl['Description']+'_script_created_at_'+timeid
+            option_params['Description'] = 'script_created_at' + timeid
+        option_params['Description'] = src_web_acl['Description'] + '_script_created_at_' + timeid
     if 'Tags' in src_web_acl:
         option_params['Tags'] = src_web_acl['Tags']
     if 'CaptchaConfig' in src_web_acl:
-        option_params['CaptchaConfig']=src_web_acl['CaptchaConfig']
+        option_params['CaptchaConfig'] = src_web_acl['CaptchaConfig']
 
     if 'ChallengeConfig' in src_web_acl:
         option_params['ChallengeConfig'] = src_web_acl['ChallengeConfig']
@@ -464,6 +479,7 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     rules = modify_rules(src_scope, dst_scope, rules_arn_updated)
 
     try:
+        print('creating web acl ' + dst_web_acl_name)
         response = dst_waf_client.create_web_acl(
             Name=dst_web_acl_name,
             Scope=dst_scope,
@@ -476,6 +492,7 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     except ClientError as e:
         print(f"创建 web acl 时发生错误: {e}")
         exit(1)
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 6:
