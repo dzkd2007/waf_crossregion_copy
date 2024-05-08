@@ -46,31 +46,6 @@ def preprocess_dict(d):
     else:
         return d
 
-
-# Function: Updated reference resource ARN
-# Example ARN: arn:aws:wafv2:ap-northeast-1:123456789:regional/ipset/testip2/a1112334-8e07-4279-b7eb-a881224sdf
-# def update_ARN(Rules):
-#     """
-#     :param Rules: 字典
-#     :return: 字典
-#
-#     基于几个global变量中存储的ARN 键-值对，替换源waf acl的json配置中使用的资源的ARN为目的waf acl的region中新创建的对应资源的ARN
-#     global 变量的ARN键值对的格式是
-#     "源资源ARN"："目的资源ARN"
-#
-#     """
-#     global REGEXSETARN
-#     global RULEGROUPARN
-#     global IPSETARN
-#     for key in REGEXSETARN:
-#         Rules = json.loads(json.dumps(Rules).replace(key, REGEXSETARN[key]))
-#     for key in RULEGROUPARN:
-#         Rules = json.loads(json.dumps(Rules).replace(key, RULEGROUPARN[key]))
-#     for key in IPSETARN:
-#         Rules = json.loads(json.dumps(Rules).replace(key, IPSETARN[key]))
-#
-#     return Rules
-
 def update_ARN(Rules):
     """
     :param Rules: 字典
