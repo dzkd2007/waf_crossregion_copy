@@ -205,15 +205,19 @@ def get_src_webacl_info(scope, webaclname):
             webacl_info['web_acl_name'] = {i["Name"]: aclid}
             break
     if aclid == '':
-        print("ERROR! Web ACL name not exist, please check your input")
+        print("错误，web acl不存在，清检查输入")
         sys.exit(1)
-    web_acl_res = src_waf_client.get_web_acl(
-        Scope=scope,
-        Name=webaclname,
-        Id=aclid
-    )
-    web_acl_details = web_acl_res['WebACL']
-    rules = web_acl_details['Rules']
+    try:
+        web_acl_res = src_waf_client.get_web_acl(
+            Scope=scope,
+            Name=webaclname,
+            Id=aclid
+        )
+        web_acl_details = web_acl_res['WebACL']
+        rules = web_acl_details['Rules']
+    except ClientError as e:
+        print(f"获取 web acl 信息时发生错误: {e}")
+        exit(1)
 
     print('-----------Finding custom resources that used in Web ACL------------')
     ipset, regset, rulegroup = get_reference_resource_info(rules, ipset, regset, rulegroup)
@@ -223,15 +227,18 @@ def get_src_webacl_info(scope, webaclname):
             rule_group_name = item
             rule_group_id = rulegroup[rule_group_name][1]
             rule_group_arn = rulegroup[rule_group_name][0]
-            rule_group_response = src_waf_client.get_rule_group(
-                Name=rule_group_name,
-                Scope=src_scope,
-                Id=rule_group_id,
-                ARN=rule_group_arn
-            )
-            rule_group_rules = rule_group_response["RuleGroup"]['Rules']
-            ipset, regset, rulegroup = get_reference_resource_info(rule_group_rules, ipset, regset, rulegroup,process_rulegroup=False)
-
+            try:
+                rule_group_response = src_waf_client.get_rule_group(
+                    Name=rule_group_name,
+                    Scope=src_scope,
+                    Id=rule_group_id,
+                    ARN=rule_group_arn
+                )
+                rule_group_rules = rule_group_response["RuleGroup"]['Rules']
+                ipset, regset, rulegroup = get_reference_resource_info(rule_group_rules, ipset, regset, rulegroup,process_rulegroup=False)
+            except ClientError as e:
+                print(f"获取 rule group 信息时发生错误: {e}")
+                exit(1)
 
     webacl_info['ip_set'] = ipset
     webacl_info['rule_group'] = rulegroup
@@ -513,10 +520,10 @@ if __name__ == '__main__':
     validate_scope_region(input_check)
 
     # global parameters and objects
-    if not os.path.exists("./json_file"):
-        os.makedirs("./json_file")
+    if not os.path.exists("./wafconfig"):
+        os.makedirs("./wafconfig")
     unique_id = str(uuid.uuid4())
-    print('-------------script execution id is %s------------------' % (unique_id))
+
 
     IPSETARN = {}
     REGEXSETARN = {}
@@ -525,6 +532,7 @@ if __name__ == '__main__':
     dst_waf_client = boto3.client('wafv2', region_name=dst_region)
 
     banner()
+    print('-------------script execution id is %s------------------' % (unique_id))
 
     waf_info = get_src_webacl_info(src_scope, web_acl_name)
 
