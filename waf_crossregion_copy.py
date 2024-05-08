@@ -502,17 +502,6 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
         print(f"创建 web acl 时发生错误: {e}")
         exit(1)
 
-
-# waf_info = {'custom_response_body': {'CustomResponseBodies': {'waf-test': {'Content': 'wrong '
-#                                                                                       'request '
-#                                                                                       'user '
-#                                                                                       'agent ',
-#                                                                            'ContentType': 'TEXT_PLAIN'}}},
-#             'ip_set': {'automate-test-ipset-v4-global-region-1': '2521a918-d6b8-4380-a797-5661fad4cbfa'},
-#             'regex_set': {'firefox-global-region': 'a8693e93-11fe-43dc-876f-34c32058af56'},
-#             'rule_group': {'waf-automation-global-region-rulegroup1': '03531fc3-6800-4fe8-83c0-b7f8f903c45d'},
-#             'web_acl_name': {'waf-automation-global-region-test-wacl-2': '1f739de7-d9d4-41bb-97cc-c9e6a2a95523'}}
-
 if __name__ == '__main__':
     if len(sys.argv) != 6:
         print("Usage: python script.py web-acl-name source-scope source-region dest-scope dest-region")
@@ -536,10 +525,7 @@ if __name__ == '__main__':
         os.makedirs("./json_file")
     unique_id = str(uuid.uuid4())
     print('-------------script execution id is %s------------------' % (unique_id))
-    # src_scope = "CLOUDFRONT"
-    # src_region = "us-east-1"
-    # dst_scope = "REGIONAL"
-    # dst_region = "us-west-1"
+
     IPSETARN = {}
     REGEXSETARN = {}
     RULEGROUPARN = {}
