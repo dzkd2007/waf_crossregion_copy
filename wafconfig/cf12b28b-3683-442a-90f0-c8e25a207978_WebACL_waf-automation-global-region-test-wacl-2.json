@@ -1,0 +1,395 @@
+{
+    "WebACL": {
+        "Name": "waf-automation-global-region-test-wacl-2",
+        "Id": "1f739de7-d9d4-41bb-97cc-c9e6a2a95523",
+        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/webacl/waf-automation-global-region-test-wacl-2/1f739de7-d9d4-41bb-97cc-c9e6a2a95523",
+        "DefaultAction": {
+            "Allow": {}
+        },
+        "Description": "cli-test-for-custom-response",
+        "Rules": [
+            {
+                "Name": "my-ipset-rules",
+                "Priority": 0,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/ipset/automate-test-ipset-v4-global-region-1/2521a918-d6b8-4380-a797-5661fad4cbfa"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "my-ipset-rules"
+                }
+            },
+            {
+                "Name": "waf-test-rule-group-1",
+                "Priority": 1,
+                "Statement": {
+                    "RuleGroupReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/rulegroup/waf-automation-global-region-rulegroup1/03531fc3-6800-4fe8-83c0-b7f8f903c45d"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "waf-test-rule-group-1"
+                }
+            },
+            {
+                "Name": "waf-automate-regex-rule-1",
+                "Priority": 2,
+                "Statement": {
+                    "RegexPatternSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/regexpatternset/firefox-global-region/a8693e93-11fe-43dc-876f-34c32058af56",
+                        "FieldToMatch": {
+                            "Headers": {
+                                "MatchPattern": {
+                                    "IncludedHeaders": [
+                                        "User-agent"
+                                    ]
+                                },
+                                "MatchScope": "KEY",
+                                "OversizeHandling": "CONTINUE"
+                            }
+                        },
+                        "TextTransformations": [
+                            {
+                                "Priority": 0,
+                                "Type": "NONE"
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 406,
+                            "CustomResponseBodyKey": "waf-test",
+                            "ResponseHeaders": [
+                                {
+                                    "Name": "waf-auto-test-rule",
+                                    "Value": "waf-automate-regex-rule-1"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "waf-automate-regex-rule-1"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesACFPRuleSet",
+                "Priority": 3,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesACFPRuleSet",
+                        "ManagedRuleGroupConfigs": [
+                            {
+                                "AWSManagedRulesACFPRuleSet": {
+                                    "CreationPath": "/web/test",
+                                    "RegistrationPagePath": "/web/test",
+                                    "RequestInspection": {
+                                        "PayloadType": "JSON"
+                                    },
+                                    "ResponseInspection": {
+                                        "StatusCode": {
+                                            "SuccessCodes": [
+                                                200
+                                            ],
+                                            "FailureCodes": [
+                                                401
+                                            ]
+                                        }
+                                    },
+                                    "EnableRegexInPath": false
+                                }
+                            }
+                        ],
+                        "RuleActionOverrides": [
+                            {
+                                "Name": "UnsupportedCognitoIDP",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AllRequests",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "RiskScoreHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SignalCredentialCompromised",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SignalClientHumanInteractivityAbsentLow",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AutomatedBrowser",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "BrowserInconsistency",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricIpHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AttributeUsernameTraversalHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricPhoneNumberHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricAddressHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricAddressLow",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricIPSuccessfulResponse",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionSuccessfulResponse",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionTokenReuseIp",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            }
+                        ]
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesACFPRuleSet"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesAdminProtectionRuleSet",
+                "Priority": 4,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesAdminProtectionRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesAdminProtectionRuleSet"
+                }
+            },
+            {
+                "Name": "helloword",
+                "Priority": 5,
+                "Statement": {
+                    "ByteMatchStatement": {
+                        "SearchString": "safari",
+                        "FieldToMatch": {
+                            "SingleHeader": {
+                                "Name": "user-agent"
+                            }
+                        },
+                        "TextTransformations": [
+                            {
+                                "Priority": 0,
+                                "Type": "NONE"
+                            }
+                        ],
+                        "PositionalConstraint": "CONTAINS"
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 414
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "helloword"
+                }
+            },
+            {
+                "Name": "helloworld-ratebase",
+                "Priority": 6,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 100,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "helloworld-ratebase"
+                }
+            },
+            {
+                "Name": "helloworld-ratebased",
+                "Priority": 7,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 100,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "helloworld-ratebased"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesATPRuleSet",
+                "Priority": 8,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesATPRuleSet",
+                        "ManagedRuleGroupConfigs": [
+                            {
+                                "AWSManagedRulesATPRuleSet": {
+                                    "LoginPath": "/login",
+                                    "RequestInspection": {
+                                        "PayloadType": "JSON",
+                                        "UsernameField": {
+                                            "Identifier": "/username"
+                                        },
+                                        "PasswordField": {
+                                            "Identifier": "/password"
+                                        }
+                                    },
+                                    "ResponseInspection": {
+                                        "BodyContains": {
+                                            "SuccessStrings": [
+                                                "login passed"
+                                            ],
+                                            "FailureStrings": [
+                                                "LoginFailed"
+                                            ]
+                                        }
+                                    },
+                                    "EnableRegexInPath": false
+                                }
+                            }
+                        ]
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesATPRuleSet"
+                }
+            }
+        ],
+        "VisibilityConfig": {
+            "SampledRequestsEnabled": true,
+            "CloudWatchMetricsEnabled": true,
+            "MetricName": "test"
+        },
+        "Capacity": 340,
+        "ManagedByFirewallManager": false,
+        "LabelNamespace": "awswaf:652875617673:webacl:waf-automation-global-region-test-wacl-2:",
+        "CustomResponseBodies": {
+            "waf-test": {
+                "ContentType": "TEXT_PLAIN",
+                "Content": "wrong request user agent "
+            }
+        },
+        "TokenDomains": [
+            "awslover.top",
+            "example.com"
+        ]
+    },
+    "LockToken": "69573325-cc0f-4ecd-9a4e-00837b74fdf4",
+    "ApplicationIntegrationURL": "https://da72fa256971.edge.sdk.awswaf.com/da72fa256971/db8234225370/",
+    "ResponseMetadata": {
+        "RequestId": "93103d94-c552-4c9c-9590-a020272e2d63",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amzn-requestid": "93103d94-c552-4c9c-9590-a020272e2d63",
+            "content-type": "application/x-amz-json-1.1",
+            "content-length": "5884",
+            "date": "Thu, 13 Jun 2024 03:07:25 GMT"
+        },
+        "RetryAttempts": 0
+    }
+}

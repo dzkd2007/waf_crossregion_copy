@@ -1,0 +1,339 @@
+{
+    "WebACL": {
+        "Name": "waf-automation-global-region-test-wacl-1",
+        "Id": "b20593e5-0707-4c66-a161-bca8b9e24043",
+        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/webacl/waf-automation-global-region-test-wacl-1/b20593e5-0707-4c66-a161-bca8b9e24043",
+        "DefaultAction": {
+            "Allow": {}
+        },
+        "Description": "waf-automation-global-region-test-wacl-1",
+        "Rules": [
+            {
+                "Name": "my-ipset-rules",
+                "Priority": 0,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/ipset/automate-test-ipset-v4-global-region-1/2521a918-d6b8-4380-a797-5661fad4cbfa"
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 423,
+                            "CustomResponseBodyKey": "custom-body-object-name-1",
+                            "ResponseHeaders": [
+                                {
+                                    "Name": "hello",
+                                    "Value": "world"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "my-ipset-rules"
+                }
+            },
+            {
+                "Name": "waf-test-rule-group-1",
+                "Priority": 1,
+                "Statement": {
+                    "RuleGroupReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/rulegroup/waf-automation-global-region-rulegroup1/03531fc3-6800-4fe8-83c0-b7f8f903c45d"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "waf-test-rule-group-1"
+                }
+            },
+            {
+                "Name": "waf-automate-regex-rule-1",
+                "Priority": 2,
+                "Statement": {
+                    "RegexPatternSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:652875617673:global/regexpatternset/firefox-global-region/a8693e93-11fe-43dc-876f-34c32058af56",
+                        "FieldToMatch": {
+                            "Headers": {
+                                "MatchPattern": {
+                                    "IncludedHeaders": [
+                                        "User-agent"
+                                    ]
+                                },
+                                "MatchScope": "KEY",
+                                "OversizeHandling": "CONTINUE"
+                            }
+                        },
+                        "TextTransformations": [
+                            {
+                                "Priority": 0,
+                                "Type": "NONE"
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 406,
+                            "CustomResponseBodyKey": "waf-test",
+                            "ResponseHeaders": [
+                                {
+                                    "Name": "waf-auto-test-rule",
+                                    "Value": "waf-automate-regex-rule-1"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "waf-automate-regex-rule-1"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesACFPRuleSet",
+                "Priority": 3,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesACFPRuleSet",
+                        "ManagedRuleGroupConfigs": [
+                            {
+                                "AWSManagedRulesACFPRuleSet": {
+                                    "CreationPath": "/web/test",
+                                    "RegistrationPagePath": "/web/test",
+                                    "RequestInspection": {
+                                        "PayloadType": "JSON"
+                                    },
+                                    "ResponseInspection": {
+                                        "StatusCode": {
+                                            "SuccessCodes": [
+                                                200
+                                            ],
+                                            "FailureCodes": [
+                                                401
+                                            ]
+                                        }
+                                    },
+                                    "EnableRegexInPath": false
+                                }
+                            }
+                        ],
+                        "RuleActionOverrides": [
+                            {
+                                "Name": "UnsupportedCognitoIDP",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AllRequests",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "RiskScoreHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SignalCredentialCompromised",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SignalClientHumanInteractivityAbsentLow",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AutomatedBrowser",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "BrowserInconsistency",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricIpHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "AttributeUsernameTraversalHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricPhoneNumberHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricAddressHigh",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricAddressLow",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricIPSuccessfulResponse",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionSuccessfulResponse",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "VolumetricSessionTokenReuseIp",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            }
+                        ]
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesACFPRuleSet"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesAdminProtectionRuleSet",
+                "Priority": 4,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesAdminProtectionRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesAdminProtectionRuleSet"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesAmazonIpReputationList",
+                "Priority": 5,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesAmazonIpReputationList"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesAmazonIpReputationList"
+                }
+            },
+            {
+                "Name": "AWS-AWSManagedRulesCommonRuleSet",
+                "Priority": 6,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesCommonRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-AWSManagedRulesCommonRuleSet"
+                }
+            }
+        ],
+        "VisibilityConfig": {
+            "SampledRequestsEnabled": true,
+            "CloudWatchMetricsEnabled": true,
+            "MetricName": "waf-automation-global-region-test-wacl-1"
+        },
+        "Capacity": 1001,
+        "ManagedByFirewallManager": false,
+        "LabelNamespace": "awswaf:652875617673:webacl:waf-automation-global-region-test-wacl-1:",
+        "CustomResponseBodies": {
+            "custom-body-object-name-1": {
+                "ContentType": "APPLICATION_JSON",
+                "Content": "test-custom-body-object-name-1"
+            },
+            "waf-test": {
+                "ContentType": "TEXT_PLAIN",
+                "Content": "wrong request user agent "
+            }
+        },
+        "CaptchaConfig": {
+            "ImmunityTimeProperty": {
+                "ImmunityTime": 1224
+            }
+        },
+        "ChallengeConfig": {
+            "ImmunityTimeProperty": {
+                "ImmunityTime": 1300
+            }
+        },
+        "TokenDomains": [
+            "test123.com"
+        ]
+    },
+    "LockToken": "7159e361-8cea-495a-bfff-ae0c66d54be1",
+    "ApplicationIntegrationURL": "https://da72fa256971.edge.sdk.awswaf.com/da72fa256971/91a7b22adffb/",
+    "ResponseMetadata": {
+        "RequestId": "88be382b-0e99-476f-9833-36aba64bbd69",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amzn-requestid": "88be382b-0e99-476f-9833-36aba64bbd69",
+            "content-type": "application/x-amz-json-1.1",
+            "content-length": "5332",
+            "date": "Wed, 08 May 2024 16:34:06 GMT"
+        },
+        "RetryAttempts": 0
+    }
+}

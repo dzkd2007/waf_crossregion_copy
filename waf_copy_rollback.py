@@ -1,7 +1,9 @@
 import boto3
 import json
 from botocore.exceptions import ClientError
-def get_rollback_info(unique_id,scope,filepath):
+
+
+def get_rollback_info(unique_id,scope,filepath='wafconfig'):
     """
     使用uuid 来get需要rollback的资源。
         webacl/rulegroup/ipset/regex的

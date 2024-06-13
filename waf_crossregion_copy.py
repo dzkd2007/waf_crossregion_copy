@@ -7,11 +7,11 @@ import sys
 from botocore.exceptions import ClientError
 import pprint
 from waf_config_save import *
-# from waf_config_diff import *
+from waf_config_diff import *
 
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
-    width = 56  # 设置总宽度为 30 个字符
+    width = len(text)+10  # 设置总宽度
 
     banner = f""" 
     {'*' * width}
@@ -285,11 +285,13 @@ def create_ipset_func(ip_set_info, src_scope, dst_scope):
                 Addresses=addresses
             )
             print('success create ipset ' + dst_ipset['Summary']['Name'])
+            ipset_created.append(dst_ipset['Summary'])
             # Add into dict
             # 将创建好的资源的ARN和原先资源的ARN记录下来，用于在创建web acl时，替换源web acl的json配置中的arn部分。
             ip_set_arn_output[ARN] = dst_ipset["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建ipset时发生错误: {e}")
+            CREATEDRESOURCE['ipset'] = ipset_created
             save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
@@ -346,6 +348,7 @@ def create_regex_func(regex_set_info, src_scope, dst_scope):
             regex_arn_output[ARN] = dst_regex["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建 regex set 时发生错误: {e}")
+            CREATEDRESOURCE['regexset'] = regex_created
             save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
@@ -431,6 +434,7 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
             rule_group_arn_output[ARN] = result["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建 rule group时发生错误: {e}")
+            CREATEDRESOURCE['rulegroup'] = rule_group_created
             save_config_to_local('Resource','created',unique_id,CREATEDRESOURCE)
             exit(1)
     #保存所有创建了的资源的信息，用于后续回滚
@@ -560,4 +564,7 @@ if __name__ == '__main__':
 
     create_web_acl(waf_info['web_acl_name'], src_scope, dst_scope)
     save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+    print('-------------following are difference between copied webacl and original webacl------------------')
+    compare_src_dst(unique_id,web_acl_name,dst_scope,dst_waf_client,CREATEDRESOURCE['webacl'])
+
 

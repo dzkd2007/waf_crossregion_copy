@@ -1,0 +1,28 @@
+{
+    "ipset": [],
+    "regexset": [
+        {
+            "Name": "firefox-global-region-toolcreated",
+            "Id": "248976a6-57a4-43b0-b2f3-6a112ee30455",
+            "Description": "firefox-global-region",
+            "LockToken": "5b98c073-723d-4610-b4af-6353443afe40",
+            "ARN": "arn:aws:wafv2:us-west-1:652875617673:regional/regexpatternset/firefox-global-region-toolcreated/248976a6-57a4-43b0-b2f3-6a112ee30455"
+        }
+    ],
+    "rulegroup": [
+        {
+            "Name": "waf-automation-global-region-rulegroup1-toolcreated",
+            "Id": "b019331d-b869-4d3c-9db8-bddbcbffd8d6",
+            "Description": "waf-automation-global-region-rulegroup1_script_created_at_20240509-00:34:12",
+            "LockToken": "d5e7d8c4-c747-4c7a-aed7-87fbaf33a994",
+            "ARN": "arn:aws:wafv2:us-west-1:652875617673:regional/rulegroup/waf-automation-global-region-rulegroup1-toolcreated/b019331d-b869-4d3c-9db8-bddbcbffd8d6"
+        }
+    ],
+    "webacl": {
+        "Name": "waf-automation-global-region-test-wacl-1-toolcreated",
+        "Id": "6cf3e21d-580d-4751-8b36-800501d9c3aa",
+        "Description": "waf-automation-global-region-test-wacl-1_script_created_at_20240509-00:34:13",
+        "LockToken": "70fb928c-26ae-48b2-b58d-1a5327b08b6d",
+        "ARN": "arn:aws:wafv2:us-west-1:652875617673:regional/webacl/waf-automation-global-region-test-wacl-1-toolcreated/6cf3e21d-580d-4751-8b36-800501d9c3aa"
+    }
+}
