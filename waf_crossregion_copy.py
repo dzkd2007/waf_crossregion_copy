@@ -6,7 +6,8 @@ import uuid
 import sys
 from botocore.exceptions import ClientError
 import pprint
-
+from waf_config_save import *
+# from waf_config_diff import *
 
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
@@ -58,21 +59,6 @@ def get_reference_resource_info(rules, ipset, regset, rulegroup, process_rulegro
     return ipset, regset, rulegroup
 
 
-# def preprocess_dict(d):
-#     """
-#     :param d:字典对象
-#     :return:将其中的bytes类数据转换成string
-#     原因是，从boto3 wafv2 api导出的waf 配置，如果有匹配字符的条目，会使用bytes类数据体现，
-#     使用json.dump转化时会报错。因此使用函数对其中的bytes对象转化成str
-#
-#     """
-#     if isinstance(d, dict):
-#         return {k: preprocess_dict(v) if isinstance(v, dict) else v.decode('utf-8') if isinstance(v, bytes) else v
-#                 for k, v in d.items()}
-#     elif isinstance(d, list):
-#         return [preprocess_dict(v) for v in d]
-#     else:
-#         return d
 
 def update_ARN(Rules):
     """
@@ -170,21 +156,21 @@ def modify_rules(src_scope, dst_scope, rules):
     return rules
 
 
-def save_config_to_local(name, unique_id, wafconfig):
-    """
-    将获取的配置保存在本地一份，用于备份和比对，或者回退
-    这里的unique——id，在每次执行脚本时生成，用于区别每次运行并区分每次获取的配置
-
-    :param name: str
-    :param unique_id: str
-    :param wafconfig: dict
-    :return:
-
-    """
-    filename = name + '_' + unique_id
-    file = open("./json_file/%s.json" % filename, "w", encoding="utf-8")
-    file.write(json.dumps(wafconfig))
-    file.close()
+# def save_config_to_local(name, unique_id, wafconfig):
+#     """
+#     将获取的配置保存在本地一份，用于备份和比对，或者回退
+#     这里的unique——id，在每次执行脚本时生成，用于区别每次运行并区分每次获取的配置
+#
+#     :param name: str
+#     :param unique_id: str
+#     :param wafconfig: dict
+#     :return:
+#
+#     """
+#     filename = name + '_' + unique_id
+#     file = open("./json_file/%s.json" % filename, "w", encoding="utf-8")
+#     file.write(json.dumps(wafconfig))
+#     file.close()
 
 
 def get_src_webacl_info(scope, webaclname):
@@ -213,6 +199,7 @@ def get_src_webacl_info(scope, webaclname):
             Name=webaclname,
             Id=aclid
         )
+        save_config_to_local('WebACL',webaclname,unique_id,web_acl_res)
         web_acl_details = web_acl_res['WebACL']
         rules = web_acl_details['Rules']
     except ClientError as e:
@@ -250,8 +237,10 @@ def get_src_webacl_info(scope, webaclname):
 def create_ipset_func(ip_set_info, src_scope, dst_scope):
     global src_waf_client
     global dst_waf_client
+    global CREATEDRESOURCE
 
     ip_set_arn_output = {}
+    ipset_created = []
 
     print('-------------creating ipsets into target region : (%s) ----------------' % (dst_region))
 
@@ -259,25 +248,33 @@ def create_ipset_func(ip_set_info, src_scope, dst_scope):
         # 获取需要创建的ipset的名字
         ip_set_name = ip_set
         ip_set_id = ip_set_info[ip_set_name]
-
         # 通过名字get配置
         src_ipset = src_waf_client.get_ip_set(
             Name=ip_set_name,
             Scope=src_scope,
             Id=ip_set_id
-
         )
         ipset = src_ipset["IPSet"]
 
         # 如果有重名会报错，这里后面加了toolcreated作为标识，防止重名。但是ipset名字最大128字符，超过也会报错，需要注意和后续优化
-        Name = ipset["Name"] + '-toolcreated'
+        if len(ipset["Name"]) <= 116:
+            Name = ipset["Name"] + '-toolcreated'
+        else:
+            Name = ipset["Name"][:116]+ '-toolcreated'
+
         ARN = ipset["ARN"]
         IPVestion = ipset["IPAddressVersion"]
         addresses = ipset['Addresses']
+        timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
         option_params = {}
         if 'Description' in ipset:
-            option_params['Description'] = ipset['Description']
-
+            if ipset['Description'] == "":
+                option_params['Description'] = 'script_created_at' + timeid
+            else:
+                if len(ipset['Description']) <= 222: # max length 256, 'script_created_at' + timeid total lenght is 34, so use 222 as threshold
+                    option_params['Description'] = ipset['Description']+'script_created_at' + timeid
+                else:
+                    option_params['Description'] = ipset['Description'][:222]+'script_created_at' + timeid
         print('creating ipset ' + Name)
         try:
             dst_ipset = dst_waf_client.create_ip_set(
@@ -293,16 +290,20 @@ def create_ipset_func(ip_set_info, src_scope, dst_scope):
             ip_set_arn_output[ARN] = dst_ipset["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建ipset时发生错误: {e}")
+            save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
+    CREATEDRESOURCE['ipset'] = ipset_created
     return ip_set_arn_output
 
 
 def create_regex_func(regex_set_info, src_scope, dst_scope):
     global src_waf_client
     global dst_waf_client
+    global CREATEDRESOURCE
 
     regex_arn_output = {}
+    regex_created = []
 
     print('-------------creating regex set into target regions : (%s) ----------------' % (dst_region))
     for regex_set in regex_set_info:
@@ -315,15 +316,23 @@ def create_regex_func(regex_set_info, src_scope, dst_scope):
             Id=regex_set_id
         )
         regexpatternset = src_regex['RegexPatternSet']
-
+        timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
         option_params = {}
         if 'Description' in regexpatternset:
-            option_params['Description'] = regexpatternset['Description']
+            if regexpatternset['Description'] == "":
+                option_params['Description'] = 'script_created_at' + timeid
+            else:
+                if len(regexpatternset['Description']) <= 222:  # max length 256, 'script_created_at' + timeid total lenght is 34, so use 222 as threshold
+                    option_params['Description'] = regexpatternset['Description'] + 'script_created_at' + timeid
+                else:
+                    option_params['Description'] = regexpatternset['Description'][:222] + 'script_created_at' + timeid
 
-        Name = regexpatternset["Name"] + '-toolcreated'
+        if len(regexpatternset["Name"]) <= 116:    # name max length is 128, '-toolcreated' is 12, so threshold is 116
+            Name = regexpatternset["Name"] + '-toolcreated'
+        else:
+            Name = regexpatternset["Name"][:116] + '-toolcreated'
         ARN = regexpatternset["ARN"]
         RegexString = regexpatternset["RegularExpressionList"]
-        # timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
         try:
             print('creating regex set  ' + Name)
             dst_regex = dst_waf_client.create_regex_pattern_set(
@@ -333,11 +342,14 @@ def create_regex_func(regex_set_info, src_scope, dst_scope):
                 RegularExpressionList=RegexString
             )
             print('Regex set: ' + Name + ' created')
+            regex_created.append(dst_regex['Summary'])
             regex_arn_output[ARN] = dst_regex["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建 regex set 时发生错误: {e}")
+            save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
+    CREATEDRESOURCE['regexset'] = regex_created
     return regex_arn_output
 
 
@@ -346,17 +358,15 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
     基于提供的rule group的名字来创建rule group
     创建时，会在源名称后面添加'-toolcreated'做区分。
     以下参数，在创建rule group时会以默认值来处理
-    1） visibility-config
-        默认
-        SampledRequestsEnabled=true
-    2） CloudWatchMetricsEnabled
-        默认为true
+
         MetricName
         默认为rule-group的名字
     """
     global src_waf_client
     global dst_waf_client
+    global CREATEDRESOURCE
     rule_group_arn_output = {}
+    rule_group_created=[]
 
     print('-------------creating rule group into target regions : (%s) ----------------' % (dst_region))
 
@@ -378,23 +388,25 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
         # 新创建的rule-group后面添加'-toolcreated'做区分
         option_params = {}
         timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
-        Name = rule_group["Name"] + '-toolcreated'
+        if len(rule_group["Name"]) <= 116:  # name max length is 128, '-toolcreated' is 12, so threshold is 116
+            Name = rule_group["Name"] + '-toolcreated'
+        else:
+            Name = rule_group["Name"][:116] + '-toolcreated'
+
         if 'Description' in rule_group:
             if rule_group['Description'] == "":
                 option_params['Description'] = 'script_created_at' + timeid
-            option_params['Description'] = rule_group['Description'] + '_script_created_at_' + timeid
-
-        # if 'Description' in rule_group:
-        #     option_params['Description'] = rule_group['Description']
+            else:
+                if len(rule_group['Description']) <= 222:  # max length 256, 'script_created_at' + timeid total lenght is 34, so use 222 as threshold
+                    option_params['Description'] = rule_group['Description'] + 'script_created_at' + timeid
+                else:
+                    option_params['Description'] = rule_group['Description'][:222] + 'script_created_at' + timeid
 
         ARN = rule_group["ARN"]
         # capacity的意义是？这个要确认一下。
         Capacity = rule_group["Capacity"]
         rules = rule_group["Rules"]
         rules_arn_updated = update_ARN(rules)
-
-        # 添加timeid变量，用于给rule添加个一个带时间戳的description
-
         # 判断是否有 custom response bodies
         if 'CustomResponseBodies' in rule_group:
             option_params['CustomResponseBodies'] = rule_group['CustomResponseBodies']
@@ -414,11 +426,15 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
 
             # 创建rule group
             print('Rule group : ' + Name + ' created')
+            rule_group_created.append(result['Summary'])
             # 将新创建的rule group的ARN和源rule group的ARN存放并返回
             rule_group_arn_output[ARN] = result["Summary"]["ARN"]
         except ClientError as e:
             print(f"创建 rule group时发生错误: {e}")
+            save_config_to_local('Resource','created',unique_id,CREATEDRESOURCE)
             exit(1)
+    #保存所有创建了的资源的信息，用于后续回滚
+    CREATEDRESOURCE['rulegroup'] = rule_group_created
     return rule_group_arn_output
 
 
@@ -427,18 +443,15 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     基于提供的web acl的名字来创建web acl
     创建时，会在源名称后面添加'-toolcreated'做区分。
     以下参数，在创建rule group时会以默认值来处理
-    1） visibility-config
-        默认
-        SampledRequestsEnabled=true
-    2） CloudWatchMetricsEnabled
-        默认为true
+    1） CloudWatchMetricsEnabled
         MetricName
         默认为rule-group的名字
-    3） 'ManagedByFirewallManager'
-        默认为：False,
-    4） 现在仅支持同帐户的同步，如果有不同帐户的情况，建议使用firewall manager
-        也因此原因web acl中的label的namespace都是在同帐户id下。
-    5) AWSManagedRulesACFPRuleSet或者AWSManagedRulesATPRuleSet,如果从cloudfront同步到regional的时候，如果有Response inspection，会将其删除，因为，其只在cloudfront资源的webacl上才支持。
+    2） 'ManagedByFirewallManager'
+        默认拷贝源webacl的配置
+    3） 现在仅支持同帐户的同步，如果有不同帐户的情况，建议使用firewall manager
+        也因此原因web acl中的label的namespace都是在同帐户id下，复用源waf-acl
+    4) AWSManagedRulesACFPRuleSet或者AWSManagedRulesATPRuleSet,如果从cloudfront同步到regional的时候，
+    如果有Response inspection，会将其删除，因为，其只在cloudfront资源的webacl上才支持。
     Response inspection is available only in web ACLs that protect Amazon CloudFront distributions.
     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-wafv2-webacl-awsmanagedrulesacfpruleset.html
 
@@ -446,6 +459,7 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     global IPSETARN
     global REGEXSETARN
     global RULEGROUPARN
+    global CREATEDRESOURCE
     global src_waf_client
     global dst_waf_client
 
@@ -453,13 +467,11 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
     web_acl_name, web_acl_id = web_acl_info.popitem()
     src_waf_info = src_waf_client.get_web_acl(Name=web_acl_name, Id=web_acl_id, Scope=src_scope)
 
-    # pprint.pprint(src_waf_info)
     dst_web_acl_name = web_acl_name + '-toolcreated'
     src_web_acl = src_waf_info["WebACL"]
     default_action = src_web_acl['DefaultAction']
     timeid = time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
 
-    # create_web_acl_cli = create_web_acl_cli + ' --default-action ' + default_action
 
     visibility_config = src_web_acl['VisibilityConfig']
     visibility_config['MetricName'] = dst_web_acl_name
@@ -496,8 +508,10 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
             Rules=rules
         )
         print('Web ACL ' + response['Summary']['Name'] + ' created')
+        CREATEDRESOURCE['webacl'] = response['Summary']
     except ClientError as e:
         print(f"创建 web acl 时发生错误: {e}")
+        save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
         exit(1)
 
 
@@ -523,11 +537,10 @@ if __name__ == '__main__':
     if not os.path.exists("./wafconfig"):
         os.makedirs("./wafconfig")
     unique_id = str(uuid.uuid4())
-
-
     IPSETARN = {}
     REGEXSETARN = {}
     RULEGROUPARN = {}
+    CREATEDRESOURCE = {}
     src_waf_client = boto3.client('wafv2', region_name=src_region)
     dst_waf_client = boto3.client('wafv2', region_name=dst_region)
 
@@ -546,3 +559,5 @@ if __name__ == '__main__':
         RULEGROUPARN = create_rule_group(waf_info['rule_group'], src_scope, dst_scope)
 
     create_web_acl(waf_info['web_acl_name'], src_scope, dst_scope)
+    save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+
