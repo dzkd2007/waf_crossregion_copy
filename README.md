@@ -1,6 +1,6 @@
 # waf_crossregion_copy
 
-## Pre-requests
+## Before usage
 
 - Create an IAM user with get, list, and create permissions for WAF, and create its Access Key and Secret Access Key.
 
@@ -9,7 +9,7 @@
 - Configure the AWS authentication credentials for boto3.Please follow the boto3 guide
 https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html
 
-## how to use the script
+## How to use this script
 You can use following format input to use the script
 
 > Usage: python script.py web-acl-name source-scope source-region dest-scope dest-region
@@ -18,7 +18,7 @@ For example:
 
 > python waf_crossregion_copy.py waf-test CLOUDFRONT us-east-1 REGIONAL us-west-1# waf_crossregion_copy
 
-## script has following limits
+## This script has following limits
 
 - don't support MODSEC and marketplace rule groups
 - don't support rule-policy that managed by firewall manager
