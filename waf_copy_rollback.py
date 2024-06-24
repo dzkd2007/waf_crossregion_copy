@@ -1,9 +1,10 @@
 import boto3
 import json
 from botocore.exceptions import ClientError
+import sys
 
 
-def get_rollback_info(unique_id,scope,filepath='wafconfig'):
+def get_rollback_info(unique_id,filepath='wafconfig'):
     """
     使用uuid 来get需要rollback的资源。
         webacl/rulegroup/ipset/regex的
@@ -90,7 +91,8 @@ def del_web_acl(web_acl_list,scope,client):
             LockToken=web_acl_list['LockToken']
         )
         print(response)
-    except ClientError as e:
+    except botocore.exceptions. as e:
+        if e =
         print(e)
     return None
 
@@ -127,6 +129,28 @@ def del_regex_set(regex_set_list,client):
     pass
 
 
-data = get_rollback_info('356ebb11-fde9-4a18-8c84-56ec119a91f6','test','wafconfig')
-client = boto3.client('wafv2', region_name='us-west-1')
-del_web_acl(data['webacl'],'REGIONAL',client)
+if __name__ == '__main__':
+    if len(sys.argv) != 1:
+        print("Usage: python script.py uuid")
+        sys.exit(1)
+
+    try:
+        unique_id = str(sys.argv[1])
+    except ValueError:
+        print("Error: All arguments must be strings.")
+        sys.exit(1)
+
+    print('****************STARTING ROLLBACK WAF COPY ID %s*********************' % unique_id)
+    data = get_rollback_info(unique_id,'wafconfig')
+    client = boto3.client('wafv2', data['dst_region'])
+    if data['webacl']:
+        del_web_acl(data['webacl'],data['dst_scope'],client)
+    if data['rulegroup']:
+        del_rule_group(data['rulegroup'],data['dst_scope'],client)
+    if data['regexset']:
+        del_regex_set()
+    if data['ipset']:
+        del_ip_set()
+    print('****************FINISH ROLLBACK WAF COPY ID %s*********************' % unique_id)
+
+

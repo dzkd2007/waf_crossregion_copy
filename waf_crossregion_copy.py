@@ -550,6 +550,8 @@ if __name__ == '__main__':
 
     banner()
     print('-------------script execution id is %s------------------' % (unique_id))
+    CREATEDRESOURCE['dst_scope']=dst_scope
+    CREATEDRESOURCE['dst_region']=dst_region
 
     waf_info = get_src_webacl_info(src_scope, web_acl_name)
 
