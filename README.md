@@ -1,4 +1,11 @@
-# waf_crossregion_copy
+# AWS WAF cross region copy
+
+## The purpose of the script
+
+So far，AWS WAF service not native support copy WAF config from one region to another. AWS Firewall Manger based solutions can achieve this function, 
+but the solution is too heavy for one account scenario and increase cloud spending.
+
+This script can achieve cross region WAF config copy by using AWS Boto3 API.Lightweight, and easy to use。 
 
 ## Before usage
 
