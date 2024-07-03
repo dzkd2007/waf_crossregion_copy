@@ -406,7 +406,6 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
                     option_params['Description'] = rule_group['Description'][:222] + 'script_created_at' + timeid
 
         ARN = rule_group["ARN"]
-        # capacity的意义是？这个要确认一下。
         Capacity = rule_group["Capacity"]
         rules = rule_group["Rules"]
         rules_arn_updated = update_ARN(rules)
