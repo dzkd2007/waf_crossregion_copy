@@ -72,7 +72,7 @@ Resource Type, Name, Id, ARN, LockToken will be save to local wafconfig/ path as
 }
 ```
 
-To roll back the creation, please find the json file that contain info of all created resources as above, and get the "execution_id", using waf_copy_rollback.py script.
+To roll back the creation, please get the execution_id from the json file that contain info of all created resources as above, using waf_copy_rollback.py script.
 
 > python waf_copy_rollback.py <execution_id>
 
