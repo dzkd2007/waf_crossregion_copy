@@ -550,6 +550,7 @@ if __name__ == '__main__':
 
     banner()
     print('-------------script execution id is %s------------------' % (unique_id))
+    CREATEDRESOURCE['execution_id']=unique_id
     CREATEDRESOURCE['dst_scope']=dst_scope
     CREATEDRESOURCE['dst_region']=dst_region
 
@@ -566,7 +567,7 @@ if __name__ == '__main__':
 
     create_web_acl(waf_info['web_acl_name'], src_scope, dst_scope)
     save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
-    print('-------------following are difference between copied webacl and original webacl------------------')
+    print('-------------following are differences between copied webacl and original webacl------------------')
     compare_src_dst(unique_id,web_acl_name,dst_scope,dst_waf_client,CREATEDRESOURCE['webacl'])
 
 
