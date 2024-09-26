@@ -6,8 +6,7 @@ import uuid
 import sys
 from botocore.exceptions import ClientError
 import pprint
-from waf_config_save import *
-from waf_config_diff import *
+from deepdiff import DeepDiff
 
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
@@ -57,8 +56,6 @@ def get_reference_resource_info(rules, ipset, regset, rulegroup, process_rulegro
                 rulegroup[rule_group_name] = [statement['RuleGroupReferenceStatement']['ARN'], rule_group_id]
 
     return ipset, regset, rulegroup
-
-
 
 def update_ARN(Rules):
     """
@@ -171,6 +168,18 @@ def modify_rules(src_scope, dst_scope, rules):
 #     file = open("./json_file/%s.json" % filename, "w", encoding="utf-8")
 #     file.write(json.dumps(wafconfig))
 #     file.close()
+def save_config_to_s3(type, name, unique_id, tmp_data):
+    json_data=json.dumps(tmp_data, indent=4, cls=BytesEncoder)
+    s3 = boto3.client('s3')
+    filename = unique_id + '_' + type + '_' + name
+    bucket_name = 'kendrafaqtestdemos3bucket'
+    object_key = 'wafcopyconfig/%s.json' % filename
+    s3.put_object(
+        Body=json_data,
+        Bucket=bucket_name,
+        Key=object_key
+    )
+    print(f"JSON data uploaded to s3://{bucket_name}/{object_key}")
 
 
 def get_src_webacl_info(scope, webaclname):
@@ -199,7 +208,7 @@ def get_src_webacl_info(scope, webaclname):
             Name=webaclname,
             Id=aclid
         )
-        save_config_to_local('WebACL',webaclname,unique_id,web_acl_res)
+        save_config_to_s3('WebACL',webaclname,unique_id,web_acl_res)
         web_acl_details = web_acl_res['WebACL']
         rules = web_acl_details['Rules']
     except ClientError as e:
@@ -292,7 +301,7 @@ def create_ipset_func(ip_set_info, src_scope, dst_scope):
         except ClientError as e:
             print(f"创建ipset时发生错误: {e}")
             CREATEDRESOURCE['ipset'] = ipset_created
-            save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+            save_config_to_s3('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
     CREATEDRESOURCE['ipset'] = ipset_created
@@ -349,7 +358,7 @@ def create_regex_func(regex_set_info, src_scope, dst_scope):
         except ClientError as e:
             print(f"创建 regex set 时发生错误: {e}")
             CREATEDRESOURCE['regexset'] = regex_created
-            save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+            save_config_to_s3('Resource', 'created', unique_id, CREATEDRESOURCE)
             exit(1)
 
     CREATEDRESOURCE['regexset'] = regex_created
@@ -434,7 +443,7 @@ def create_rule_group(rule_group_info, src_scope, dst_scope):
         except ClientError as e:
             print(f"创建 rule group时发生错误: {e}")
             CREATEDRESOURCE['rulegroup'] = rule_group_created
-            save_config_to_local('Resource','created',unique_id,CREATEDRESOURCE)
+            save_config_to_s3('Resource','created',unique_id,CREATEDRESOURCE)
             exit(1)
     #保存所有创建了的资源的信息，用于后续回滚
     CREATEDRESOURCE['rulegroup'] = rule_group_created
@@ -514,8 +523,40 @@ def create_web_acl(web_acl_info, src_scope, dst_scope):
         CREATEDRESOURCE['webacl'] = response['Summary']
     except ClientError as e:
         print(f"创建 web acl 时发生错误: {e}")
-        save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+        save_config_to_s3('Resource', 'created', unique_id, CREATEDRESOURCE)
         exit(1)
+
+def compare_src_dst(unique_id,web_acl_name,dst_scope,dst_waf_client,temp_data):
+    """
+
+    :param unique_id: str
+    :param web_acl_name: str
+    :param dst_waf_client: boto3client
+    :param temp_data: dict
+    :return:
+    """
+    src_file_name = unique_id + '_WebACL_' + web_acl_name
+    s3 = boto3.client('s3')
+    bucket_name = 'kendrafaqtestdemos3bucket'
+    object_key = 'wafcopyconfig/%s.json' % (src_file_name)
+    # 从S3获取对象
+    response = s3.get_object(
+        Bucket=bucket_name,
+        Key=object_key
+    )
+    # 读取对象的内容
+    json_data = response['Body'].read().decode('utf-8')
+    # 将JSON字符串加载为Python字典
+    src_json = json.loads(json_data)
+    dst = dst_waf_client.get_web_acl(
+            Scope=dst_scope,
+            Name=temp_data['Name'],
+            Id=temp_data['Id']
+        )
+    ddiff = DeepDiff(src_json, dst, ignore_order=True,ignore_string_type_changes=True)
+    pprint.pprint(ddiff)
+    return None
+
 
 
 if __name__ == '__main__':
@@ -565,7 +606,7 @@ if __name__ == '__main__':
         RULEGROUPARN = create_rule_group(waf_info['rule_group'], src_scope, dst_scope)
 
     create_web_acl(waf_info['web_acl_name'], src_scope, dst_scope)
-    save_config_to_local('Resource', 'created', unique_id, CREATEDRESOURCE)
+    save_config_to_s3('Resource', 'created', unique_id, CREATEDRESOURCE)
     print('-------------following are differences between copied webacl and original webacl------------------')
     compare_src_dst(unique_id,web_acl_name,dst_scope,dst_waf_client,CREATEDRESOURCE['webacl'])
 
