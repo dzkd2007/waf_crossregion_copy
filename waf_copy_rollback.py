@@ -67,6 +67,23 @@ def get_rollback_info(unique_id,filepath='wafconfig'):
     return data
 
 
+def get_rollback_info_from_s3(unique_id,filepath='wafcopyconfig'):
+    filename = unique_id + '_Resource_Created'
+    s3 = boto3.client('s3')
+    # 指定S3桶名称和对象键
+    bucket_name = 'kendrafaqtestdemos3bucket'
+    object_key = '%s/%s.json' %(filepath,filename)
+    # 从S3获取对象
+    response = s3.get_object(
+        Bucket=bucket_name,
+        Key=object_key
+    )
+    # 读取对象的内容
+    json_data = response['Body'].read().decode('utf-8')
+    # 将JSON字符串加载为Python字典
+    data = json.loads(json_data)
+    return data
+
 def get_lock_token(type,object_info_dict,client,scope):
     """
     基于资源的种类
@@ -242,7 +259,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     print('****************STARTING ROLLBACK WAF COPY ID %s*********************' % unique_id)
-    data = get_rollback_info(unique_id,'wafconfig')
+    data = get_rollback_info_from_s3(unique_id)
     client = boto3.client('wafv2', data['dst_region'])
     if data['webacl']:
         del_web_acl(data['webacl'],data['dst_scope'],client)
