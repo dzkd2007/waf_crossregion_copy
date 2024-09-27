@@ -8,6 +8,17 @@ from botocore.exceptions import ClientError
 import pprint
 from deepdiff import DeepDiff
 
+
+class BytesEncoder(json.JSONEncoder):
+    """
+    我们定义了一个自定义的 JSON 编码器 BytesEncoder。它继承自 json.JSONEncoder,并重写了 default 方法。
+    在 default 方法中,我们检查对象是否为字节字符串类型。如果是,则将其解码为 UTF-8 字符串;否则,使用基类的 default 方法处理其他类型的对象。
+    """
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return obj.decode('utf-8')
+        return json.JSONEncoder.default(self, obj)
+
 def banner():
     text = "WAF CROSS REGION COPY SCRIPT START"
     width = len(text)+10  # 设置总宽度
@@ -265,7 +276,7 @@ def create_ipset_func(ip_set_info, src_scope, dst_scope):
         )
         ipset = src_ipset["IPSet"]
 
-        # 如果有重名会报错，这里后面加了toolcreated作为标识，防止重名。但是ipset名字最大128字符，超过也会报错，需要注意和后续优化
+        # 如果有重名会报错，这里后面加了toolcreated作为标识，防止重名。
         if len(ipset["Name"]) <= 116:
             Name = ipset["Name"] + '-toolcreated'
         else:
