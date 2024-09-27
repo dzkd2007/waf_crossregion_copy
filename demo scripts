@@ -1,0 +1,2 @@
+python3 waf_crossregion_copy.py waf-automation-global-region-test-wacl-1 CLOUDFRONT us-east-1 REGIONAL us-west-1
+python3 waf_copy_rollback.py 60314936-5845-4c17-9314-e55bf358e8be
