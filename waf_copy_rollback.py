@@ -71,7 +71,7 @@ def get_rollback_info_from_s3(unique_id,filepath='wafcopyconfig'):
     filename = unique_id + '_Resource_created'
     s3 = boto3.client('s3')
     # 指定S3桶名称和对象键
-    bucket_name = 'kendrafaqtestdemos3bucket'
+    bucket_name = 'yourS3bucketName'
     object_key = '%s/%s.json' %(filepath,filename)
     # 从S3获取对象
     response = s3.get_object(
