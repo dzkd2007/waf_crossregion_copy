@@ -183,7 +183,7 @@ def save_config_to_s3(type, name, unique_id, tmp_data):
     json_data=json.dumps(tmp_data, indent=4, cls=BytesEncoder)
     s3 = boto3.client('s3')
     filename = unique_id + '_' + type + '_' + name
-    bucket_name = 'kendrafaqtestdemos3bucket'
+    bucket_name = 'yourS3BucketName'
     object_key = 'wafcopyconfig/%s.json' % filename
     s3.put_object(
         Body=json_data,
